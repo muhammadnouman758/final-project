@@ -21,7 +21,7 @@ class PdfChatScreen extends StatefulWidget {
 
 class _PdfChatScreenState extends State<PdfChatScreen>
     with TickerProviderStateMixin {
-  final String _geminiApiKey = 'AIzaSyDSmRsMbEq6XSTvBjRQE5R2x7Thfn6Crto';
+  final String _geminiApiKey = 'A';
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _chatScrollController = ScrollController();
   final FocusNode _messageFocusNode = FocusNode();

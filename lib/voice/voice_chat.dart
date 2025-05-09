@@ -22,7 +22,7 @@ class VoiceChatBotPdf extends StatefulWidget {
 
 class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     with TickerProviderStateMixin {
-  final String _geminiApiKey = 'AIzaSyDSmRsMbEq6XSTvBjRQE5R2x7Thfn6Crto';
+  final String _geminiApiKey = 'A';
   final ScrollController _chatScrollController = ScrollController();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();

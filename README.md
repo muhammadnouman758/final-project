@@ -101,7 +101,7 @@ We welcome contributions! Please follow these steps:
 
 ## Support 💬
 
-For support or feature requests, please open an issue on GitHub or contact us at support@smartpdfchat.com
+For support or feature requests, please open an issue on GitHub or contact us at m.nouman5710@gmail.com
 
 ---
 

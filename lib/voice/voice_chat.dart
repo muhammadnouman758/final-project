@@ -21,7 +21,11 @@ class VoiceChatBotPdf extends StatefulWidget {
 
 class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     with TickerProviderStateMixin {
+<<<<<<< HEAD
   final String _geminiApiKey = '';
+=======
+  final String _geminiApiKey = 'A';
+>>>>>>> ef61391823bb2e13be3f90f42114a62d3041b6ea
   final ScrollController _chatScrollController = ScrollController();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
@@ -1361,4 +1365,134 @@ class VoiceChatBubble extends StatelessWidget {
       ),
     );
   }
+<<<<<<< HEAD
 }
+=======
+
+  @override
+  Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Chat History'),
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _sessions.isEmpty
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.history,
+              size: 64,
+              color: isDarkMode ? Colors.grey : Colors.grey.shade400,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No chat history yet',
+              style: TextStyle(
+                fontSize: 18,
+                color: isDarkMode ? Colors.grey : Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      )
+          : ListView.builder(
+        itemCount: _sessions.length,
+        itemBuilder: (context, index) {
+          final session = _sessions[index];
+          final isActive = session['id'] == widget.currentSessionId;
+
+          return Dismissible(
+            key: Key('session_${session['id']}'),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              color: Colors.red,
+              child: const Icon(
+                Icons.delete,
+                color: Colors.white,
+              ),
+            ),
+            confirmDismiss: (direction) async {
+              return await showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Delete Session'),
+                  content: const Text('Are you sure you want to delete this chat session?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            onDismissed: (direction) {
+              _deleteSession(session['id']);
+            },
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isActive ? Colors.blue : Colors.grey.shade200,
+                child: Icon(
+                  Icons.description,
+                  color: isActive ? Colors.white : Colors.grey.shade600,
+                ),
+              ),
+              title: Text(
+                session['name'] ?? 'Unnamed Document',
+                style: TextStyle(
+                  fontWeight: isActive ? FontWeight.bold : null,
+                ),
+              ),
+              subtitle: Text(
+                _formatDateTime(session['timestamp']),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: isActive ? Colors.blue : null,
+              ),
+              onTap: () {
+                Navigator.of(context).pop(session);
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+
+    if (difference.inDays == 0) {
+      return 'Today at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else if (difference.inDays < 7) {
+      final List<String> weekdays = [
+        'Monday',
+        'Tuesday',
+        'Wednesday',
+        'Thursday',
+        'Friday',
+        'Saturday',
+        'Sunday'
+      ];
+      return '${weekdays[dateTime.weekday - 1]} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    } else {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+    }
+  }
+}
+>>>>>>> ef61391823bb2e13be3f90f42114a62d3041b6ea

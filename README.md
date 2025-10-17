@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Smart NexPDFChat Assistant
+=======
+# Smart PDF Chat Assistant
+>>>>>>> ef61391823bb2e13be3f90f42114a62d3041b6ea
 
 ![App Screenshot](https://via.placeholder.com/800x500.png?text=Smart+PDF+Chat+Assistant+Screenshot)
 
@@ -96,6 +100,7 @@ We welcome contributions! Please follow these steps:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
+<<<<<<< HEAD
 ## License 📜
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -107,3 +112,15 @@ For support or feature requests, please open an issue on GitHub or contact us at
 ---
 
 **Happy Document Exploring!** 📄💬
+=======
+
+
+
+## Support 💬
+
+For support or feature requests, please open an issue on GitHub or contact us at m.nouman5710@gmail.com
+
+---
+
+**Happy Document Exploring!** 📄💬
+>>>>>>> ef61391823bb2e13be3f90f42114a62d3041b6ea

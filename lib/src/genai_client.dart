@@ -33,7 +33,9 @@ class GenaiClient {
     Uint8List fileData,
     String prompt,
   ) async {
+    
     try {
+
       // Get the genai file by checking if it exists; otherwise, upload it.
       final file = await genaiFileManager.getGenaiFile(
         fileName,
@@ -42,7 +44,7 @@ class GenaiClient {
       );
 
       final response = await Dio().post(
-        '$baseUrl/models/gemini-1.5-flash:generateContent?key=$geminiApiKey',
+        '$baseUrl/models/gemini-2.5-flash:generateContent?key=$geminiApiKey',
         options: Options(
           headers: {'Content-Type': 'application/json'},
         ),

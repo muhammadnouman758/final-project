@@ -14,7 +14,7 @@
 //   @override
 //   Widget build(BuildContext context) {
 //     return MaterialApp(
-//       title: 'Smart PDF Chat',
+//       title: 'Smart NexPDFChat',
 //       theme: ThemeData(
 //         primarySwatch: Colors.blue,
 //         brightness: Brightness.light,
@@ -50,7 +50,7 @@
 //
 //   final List<OnboardingItem> _onboardingItems = [
 //     OnboardingItem(
-//       title: "Welcome to Smart PDF Chat",
+//       title: "Welcome to Smart NexPDFChat",
 //       description: "Your intelligent assistant for PDF documents, powered by advanced AI.",
 //       lottieAsset: "assets/animations/welcome_animation.json",
 //     ),
@@ -488,7 +488,7 @@
 //                     ),
 //                   ),
 //                   child: Text(
-//                     "Skip to PDF Chat",
+//                     "Skip to NexPDFChat",
 //                     style: TextStyle(
 //                       fontSize: 16,
 //                       color: primaryColor,
@@ -504,14 +504,11 @@
 //   }
 // }
 import 'package:flutter/material.dart';
-import 'package:smart_pdf_chat/chatbot.dart';
-import 'package:lottie/lottie.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:smart_pdf_chat/view/pdf_chat_screen.dart';
+import 'package:smart_pdf_chat/voice/voice_chat.dart';
 
 import 'onboarding/splash.dart';
 
@@ -535,7 +532,7 @@ class MyApp extends StatelessWidget {
       minTextAdapt: true,
       splitScreenMode: true,
       child: MaterialApp(
-        title: 'Smart PDF Chat',
+        title: 'Smart NexPDFChat',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
@@ -548,12 +545,13 @@ class MyApp extends StatelessWidget {
         initialRoute: '/home',
         routes: {
           '/home': (context) => const SplashScreen(),
-          // Add other routes as needed
+          '/voice' : (context) => VoiceChatBotPdf(),
         },
       ),
     );
   }
 }
+
 class FileUploadScreen extends StatefulWidget {
   const FileUploadScreen({super.key});
 
@@ -660,7 +658,7 @@ class _FileUploadScreenState extends State<FileUploadScreen> with SingleTickerPr
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                // App Logo/Branding
+
                 Row(
                   children: [
                     Container(
@@ -796,7 +794,7 @@ class _FileUploadScreenState extends State<FileUploadScreen> with SingleTickerPr
                       disabledForegroundColor: primaryColor.withOpacity(0.4),
                     ),
                     child: Text(
-                      "Skip to PDF Chat",
+                      "Skip to NexPDFChat",
                       style: TextStyle(
                         fontSize: 14,
                         color: _isProcessing ? primaryColor.withOpacity(0.6) : primaryColor,

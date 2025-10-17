@@ -1,4 +1,4 @@
-# Smart PDF Chat Assistant
+# Smart NexPDFChat Assistant
 
 ![App Screenshot](https://via.placeholder.com/800x500.png?text=Smart+PDF+Chat+Assistant+Screenshot)
 

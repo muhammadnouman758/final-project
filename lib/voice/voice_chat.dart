@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:flutter_tts/flutter_tts.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../history/chat_his_repo.dart';
 
@@ -22,7 +21,7 @@ class VoiceChatBotPdf extends StatefulWidget {
 
 class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     with TickerProviderStateMixin {
-  final String _geminiApiKey = 'A';
+  final String _geminiApiKey = '';
   final ScrollController _chatScrollController = ScrollController();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
@@ -35,8 +34,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   bool _isSpeaking = false;
   bool _isListening = false;
   bool _showSuggestionsOverlay = false;
-  bool _autoListen = true;
-  bool _manualMicToggle = false; // Track manual mic toggling
+  bool _micActivated = false;
   String _statusMessage = 'Upload a PDF to start chatting';
   String _fileContext = '';
   List<VoiceChatMessage> _messages = [];
@@ -49,7 +47,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   late AnimationController _aiVoiceAnimationController;
   final List<double> _waveHeights = List.generate(20, (_) => 0.0);
   Timer? _waveUpdateTimer;
-  Timer? _micRestartTimer; // Timer for debouncing mic restart
+  Timer? _noSoundTimer;
 
   late AnimationController _overlayAnimationController;
   late Animation<double> _overlayScaleAnimation;
@@ -57,13 +55,10 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   late Animation<double> _botScaleAnimation;
   late Animation<double> _botRotationAnimation;
 
-  final ChatHistoryRepository _historyRepository = ChatHistoryRepository();
+  final ChatHistoryRepository _historyRepository  = ChatHistoryRepository();
   int? _currentSessionId;
   bool _isRestoredSession = false;
 
-  late AnimationController _backgroundAnimationController;
-  late AnimationController _fabAnimationController;
-  late Animation<double> _fabScaleAnimation;
   final List<Color> _gradientColors = [
     const Color(0xFF4776E6),
     const Color(0xFF8E54E9)
@@ -86,26 +81,9 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   }
 
   void _initAnimations() {
-    _backgroundAnimationController = AnimationController(
-      duration: const Duration(seconds: 20),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _fabAnimationController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
     _levelAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 100),
-    );
-
-    _fabScaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _fabAnimationController,
-        curve: Curves.elasticOut,
-      ),
     );
 
     _aiVoiceAnimationController = AnimationController(
@@ -118,7 +96,11 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     _overlayAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
-    );
+    )..addListener(() {
+      if (_overlayAnimationController.value < 0.0 || _overlayAnimationController.value > 1.0) {
+        print('Warning: _overlayAnimationController value out of bounds: ${_overlayAnimationController.value}');
+      }
+    });
 
     _overlayScaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(
@@ -144,21 +126,18 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
       ),
     );
 
-    _botRotationAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween<double>(begin: -0.1, end: 0.1), weight: 50),
-      TweenSequenceItem(tween: Tween<double>(begin: 0.1, end: 0.0), weight: 50),
-    ]).animate(
+    _botRotationAnimation = Tween<double>(begin: -0.1, end: 0.1).animate(
       CurvedAnimation(
         parent: _overlayAnimationController,
         curve: Curves.easeInOut,
       ),
     );
-
-    _fabAnimationController.forward();
   }
 
   void _startAIVoiceAnimation() {
-    _aiVoiceAnimationController.repeat(reverse: true);
+    if (!_aiVoiceAnimationController.isAnimating) {
+      _aiVoiceAnimationController.repeat(reverse: true);
+    }
     _waveUpdateTimer?.cancel();
     _waveUpdateTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (mounted) {
@@ -196,8 +175,12 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   }
 
   void _hideSuggestionsFullScreen() {
-    setState(() {
-      _showSuggestionsOverlay = false;
+    _overlayAnimationController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _showSuggestionsOverlay = false;
+        });
+      }
     });
     _stopAIVoiceAnimation();
   }
@@ -207,11 +190,11 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
       onStatus: (status) {
         if (status == 'done' || status == 'notListening') {
           setState(() => _isListening = false);
-          if (_autoListen && mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-            _micRestartTimer?.cancel();
-            _micRestartTimer = Timer(const Duration(seconds: 2), () {
-              if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-                _startListening();
+          if (_micActivated && mounted && !_isSpeaking && !_isProcessing) {
+            _noSoundTimer?.cancel();
+            _noSoundTimer = Timer(const Duration(seconds: 3), () {
+              if (mounted && !_isSpeaking && !_isProcessing && _currentTranscript.isEmpty) {
+                _handleNoSoundDetected();
               }
             });
           }
@@ -219,16 +202,12 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
       },
       onError: (error) {
         print('Speech recognition error: $error');
-        // setState(() {
-        //   _isListening = false;
-        //   _statusMessage = 'Speech recognition error';
-        // });
-        _showErrorSnackBar('Speech recognition error: ${error.errorMsg}');
-        if (_autoListen && mounted && !_manualMicToggle) {
-          _micRestartTimer?.cancel();
-          _micRestartTimer = Timer(const Duration(seconds: 2), () {
-            if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-              _startListening();
+        _showErrorSnackbar('Speech recognition error: ${error.errorMsg}');
+        if (_micActivated && mounted) {
+          _noSoundTimer?.cancel();
+          _noSoundTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted && !_isSpeaking && !_isProcessing && _currentTranscript.isEmpty) {
+              _handleNoSoundDetected();
             }
           });
         }
@@ -238,7 +217,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
       setState(() {
         _statusMessage = 'Speech recognition unavailable';
       });
-      _showErrorSnackBar('Speech recognition unavailable');
+      _showErrorSnackbar('Speech recognition unavailable');
     }
   }
 
@@ -253,11 +232,11 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     _tts.setCompletionHandler(() {
       setState(() => _isSpeaking = false);
       _stopAIVoiceAnimation();
-      if (_autoListen && mounted && !_isProcessing && !_manualMicToggle) {
-        _micRestartTimer?.cancel();
-        _micRestartTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-            _startListening();
+      if (_micActivated && mounted && !_isProcessing) {
+        _noSoundTimer?.cancel();
+        _noSoundTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted && !_isSpeaking && !_isProcessing && _currentTranscript.isEmpty) {
+            _handleNoSoundDetected();
           }
         });
       }
@@ -265,12 +244,12 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     _tts.setErrorHandler((msg) {
       setState(() => _isSpeaking = false);
       _stopAIVoiceAnimation();
-      _showErrorSnackBar('TTS error: $msg');
-      if (_autoListen && mounted && !_isProcessing && !_manualMicToggle) {
-        _micRestartTimer?.cancel();
-        _micRestartTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-            _startListening();
+      _showErrorSnackbar('TTS error: $msg');
+      if (_micActivated && mounted) {
+        _noSoundTimer?.cancel();
+        _noSoundTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted && !_isSpeaking && !_isProcessing && _currentTranscript.isEmpty) {
+            _handleNoSoundDetected();
           }
         });
       }
@@ -279,7 +258,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
 
   void _addWelcomeMessage() {
     _messages.add(VoiceChatMessage(
-      text: "# Welcome to Voice PDF Assistant! 🎤\n\nPress the microphone button to start or stop listening. Upload a PDF document to discuss its contents.",
+      text: "# Welcome to Voice PDF Assistant! 🎤\n\nPress the microphone button to start listening. Upload a PDF document to discuss its contents.",
       isUser: false,
       timestamp: DateTime.now(),
       isIntro: true,
@@ -293,7 +272,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     setState(() {
       _isListening = true;
       _currentTranscript = '';
-      _manualMicToggle = false; // Reset manual toggle flag
+      _micActivated = true;
     });
 
     try {
@@ -304,7 +283,11 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
               _currentTranscript = result.recognizedWords;
               if (result.finalResult && _currentTranscript.isNotEmpty) {
                 _speech.stop();
-                setState(() => _isListening = false);
+                setState(() {
+                  _isListening = false;
+                  _micActivated = false;
+                });
+                _noSoundTimer?.cancel();
                 _handleVoiceInput(_currentTranscript);
               }
             });
@@ -324,17 +307,10 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     } catch (e) {
       setState(() {
         _isListening = false;
-        _statusMessage = 'Failed to start listening';
+        _micActivated = false;
       });
-      _showErrorSnackBar('Failed to start listening: $e');
-      if (_autoListen && mounted && !_manualMicToggle) {
-        _micRestartTimer?.cancel();
-        _micRestartTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-            _startListening();
-          }
-        });
-      }
+      _showErrorSnackbar('Failed to start listening: $e');
+      _noSoundTimer?.cancel();
     }
   }
 
@@ -344,32 +320,50 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     _levelAnimationController.stop();
     setState(() {
       _isListening = false;
-      _manualMicToggle = true; // Mark as manually stopped
+      _micActivated = false;
     });
+    _noSoundTimer?.cancel();
     if (_currentTranscript.isNotEmpty) {
       _handleVoiceInput(_currentTranscript);
     }
   }
 
-  void _toggleAutoListen() {
+  void _handleNoSoundDetected() async {
+    if (_isProcessing || _isSpeaking || _isListening) return;
+
+    const responseText = "How can I assist you? I'm waiting for your response.";
     setState(() {
-      _autoListen = !_autoListen;
-      _manualMicToggle = false; // Reset manual toggle when toggling auto-listen
+      _messages.add(VoiceChatMessage(
+        text: responseText,
+        isUser: false,
+        timestamp: DateTime.now(),
+        isIntro: false,
+      ));
+      _isProcessing = true;
+      _scrollToBottom();
     });
-    if (_autoListen && !_isListening && !_isSpeaking && !_isProcessing) {
-      _startListening();
-    } else {
-      _micRestartTimer?.cancel();
+
+    if (_currentSessionId != null) {
+      await _historyRepository.addMessage(
+        _currentSessionId!,
+        responseText,
+        false,
+        DateTime.now(),
+        false,
+      );
     }
+
+    await _tts.speak(responseText);
+    setState(() => _isProcessing = false);
   }
 
   void _handleVoiceInput(String transcript) async {
     if (transcript.trim().isEmpty) {
-      if (_autoListen && mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-        _micRestartTimer?.cancel();
-        _micRestartTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-            _startListening();
+      if (_micActivated && mounted && !_isSpeaking && !_isProcessing) {
+        _noSoundTimer?.cancel();
+        _noSoundTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted && !_isSpeaking && !_isProcessing && _currentTranscript.isEmpty) {
+            _handleNoSoundDetected();
           }
         });
       }
@@ -419,6 +413,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
         Document Context: $_fileContext
         Conversation History: $conversationHistory
         Instruction: Respond concisely for voice output. Avoid markdown. Keep under 3 sentences.
+        If the question is unrelated to the document, respond with: "I apologize to answer, I am unable to answer the questions."
         User Question: $input
         """;
 
@@ -429,6 +424,11 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
           fullPrompt,
         );
         responseText = response.text;
+
+        if (responseText.toLowerCase().contains('not finding this in the document') ||
+            responseText.toLowerCase().contains('unrelated to the document')) {
+          responseText = "I apologize to answer, I am unable to answer the questions.";
+        }
       }
 
       setState(() {
@@ -465,13 +465,13 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
         ));
         _scrollToBottom();
       });
-      _showErrorSnackBar('Error: ${e.toString()}');
+      _showErrorSnackbar('Error: ${e.toString()}');
       _stopAIVoiceAnimation();
-      if (_autoListen && mounted && !_manualMicToggle) {
-        _micRestartTimer?.cancel();
-        _micRestartTimer = Timer(const Duration(seconds: 2), () {
-          if (mounted && !_isSpeaking && !_isProcessing && !_manualMicToggle) {
-            _startListening();
+      if (_micActivated && mounted) {
+        _noSoundTimer?.cancel();
+        _noSoundTimer = Timer(const Duration(seconds: 3), () {
+          if (mounted && !_isSpeaking && !_isProcessing && _currentTranscript.isEmpty) {
+            _handleNoSoundDetected();
           }
         });
       }
@@ -515,7 +515,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
         _isLoading = false;
         _statusMessage = 'Error selecting file';
       });
-      _showErrorSnackBar('Error selecting file: ${e.toString()}');
+      _showErrorSnackbar('Error selecting file: ${e.toString()}');
       _stopAIVoiceAnimation();
     }
   }
@@ -581,7 +581,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
         _isLoading = false;
         _statusMessage = 'Error processing file';
       });
-      _showErrorSnackBar('Error processing file: ${e.toString()}');
+      _showErrorSnackbar('Error processing file: ${e.toString()}');
     }
   }
 
@@ -732,61 +732,58 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   }
 
   Widget _buildSuggestedQuestions() {
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 300),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.grey[900]
-              : Colors.grey[100],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Suggested Questions:',
-                    style: TextStyle(
-                      color: _gradientColors[0],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    )),
-                IconButton(
-                  icon: Icon(Icons.fullscreen, color: _gradientColors[0]),
-                  onPressed: _showSuggestionsFullScreen,
-                  tooltip: 'Show all suggestions',
-                ),
-              ],
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _suggestedQuestions
-                    .map((q) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    label: Text(q,
-                        style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                        )),
-                    backgroundColor: _gradientColors[0].withOpacity(0.1),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: _gradientColors[0]),
-                    ),
-                    onPressed: () => _handleVoiceInput(q),
-                  ),
-                ))
-                    .toList(),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark
+            ? Colors.grey[900]
+            : Colors.grey[100],
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Suggested Questions:',
+                  style: TextStyle(
+                    color: _gradientColors[0],
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  )),
+              IconButton(
+                icon: Icon(Icons.fullscreen, color: _gradientColors[0]),
+                onPressed: _showSuggestionsFullScreen,
+                tooltip: 'Show all suggestions',
               ),
+            ],
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _suggestedQuestions
+                  .map((q) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ActionChip(
+                  label: Text(q,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      )),
+                  backgroundColor: _gradientColors[0].withOpacity(0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                    side: BorderSide(color: _gradientColors[0]),
+                  ),
+                  onPressed: () => _handleVoiceInput(q),
+                ),
+              ))
+                  .toList(),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -797,116 +794,78 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     final textColor = isDarkMode ? Colors.white : Colors.black;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Row(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text('Voice PDF Assistant', style: TextStyle(color: textColor,fontWeight: FontWeight.bold)),
+        ),
+        body: Stack(
           children: [
-            _buildAIIndicator(),
-            const SizedBox(width: 8),
-            Text('Voice PDF Assistant', style: TextStyle(color: textColor)),
+            Container(
+              color: isDarkMode ? Colors.black : Colors.white,
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  if (_isLoading)
+                    LinearProgressIndicator(
+                      minHeight: 3,
+                      valueColor: AlwaysStoppedAnimation(_gradientColors[0]),
+                    ),
+                  Expanded(
+                    child: _messages.isEmpty
+                        ? _buildEmptyState(isDarkMode)
+                        : Column(
+                      children: [
+                        Expanded(
+                          child: ListView.builder(
+                            controller: _chatScrollController,
+                            itemCount: _messages.length + (_isProcessing ? 1 : 0),
+                            padding: const EdgeInsets.all(16),
+                            itemBuilder: (context, index) {
+                              if (index == _messages.length && _isProcessing) {
+                                return _buildProcessingIndicator();
+                              }
+                              return VoiceChatBubble(
+                                message: _messages[index],
+                                gradientColors: _gradientColors,
+                                isDarkMode: isDarkMode,
+                                isSpeaking: _isSpeaking && index == _messages.length - 1,
+                                onPlay: () => _tts.speak(_messages[index].text),
+                                showVoiceWave: !_messages[index].isUser && index == _messages.length - 1,
+                                waveHeights: _waveHeights,
+                              );
+                            },
+                          ),
+                        ),
+                        if (_suggestedQuestions.isNotEmpty && !_isProcessing && !_showSuggestionsOverlay)
+                          _buildSuggestedQuestions(),
+                      ],
+                    ),
+                  ),
+                  _buildVoiceInputUI(isDarkMode),
+                ],
+              ),
+            ),
+            if (_showSuggestionsOverlay) _buildSuggestedQuestionsOverlay(),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: ShaderMask(
-              shaderCallback: (bounds) => LinearGradient(
-                colors: _gradientColors,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds),
-              child: const Icon(Icons.history, color: Colors.white),
-            ),
-            onPressed: _openChatHistory,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          AnimatedBuilder(
-            animation: _backgroundAnimationController,
-            builder: (context, child) {
-              return CustomPaint(
-                painter: AnimatedBackgroundPainter(
-                  animation: _backgroundAnimationController.value,
-                  isDarkMode: isDarkMode,
-                  gradientColors: _gradientColors,
-                ),
-                child: Container(),
-              );
-            },
-          ),
-          BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              color: (isDarkMode ? Colors.black : Colors.white).withOpacity(0.8),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                if (_isLoading)
-                  LinearProgressIndicator(
-                    minHeight: 3,
-                    valueColor: AlwaysStoppedAnimation(_gradientColors[0]),
-                  ),
-                Expanded(
-                  child: _messages.isEmpty
-                      ? _buildEmptyState(isDarkMode)
-                      : Column(
-                    children: [
-                      Expanded(
-                        child: ListView.builder(
-                          controller: _chatScrollController,
-                          itemCount: _messages.length + (_isProcessing ? 1 : 0),
-                          padding: const EdgeInsets.all(16),
-                          itemBuilder: (context, index) {
-                            if (index == _messages.length && _isProcessing) {
-                              return _buildProcessingIndicator();
-                            }
-                            return VoiceChatBubble(
-                              message: _messages[index],
-                              gradientColors: _gradientColors,
-                              isDarkMode: isDarkMode,
-                              isSpeaking: _isSpeaking && index == _messages.length - 1,
-                              onPlay: () => _tts.speak(_messages[index].text),
-                              showVoiceWave: !_messages[index].isUser && index == _messages.length - 1,
-                              waveHeights: _waveHeights,
-                            );
-                          },
-                        ),
-                      ),
-                      if (_suggestedQuestions.isNotEmpty && !_isProcessing && !_showSuggestionsOverlay)
-                        _buildSuggestedQuestions(),
-                    ],
-                  ),
-                ),
-                _buildVoiceInputUI(isDarkMode),
-              ],
-            ),
-          ),
-          if (_showSuggestionsOverlay) _buildSuggestedQuestionsOverlay(),
-        ],
-      ),
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 120.0), // Increased for SnackBar
-        child: _buildFloatingActionButtons(isDarkMode),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
+        // CIRCUIT BREAKER: FloatingActionButton was found in the code and needs to be checked if it needs to be sandboxed for security purposes.
+    floatingActionButton: Padding(
+    padding: const EdgeInsets.only(bottom: 80.0),
+    child: _buildFloatingActionButtons(isDarkMode),
+    ),
+    floatingActionButtonLocation: FloatingActionButtonLocation.endDocked,
     );
   }
 
   Widget _buildFloatingActionButtons(bool isDarkMode) {
     if (_fileContext.isEmpty) {
-      return ScaleTransition(
-        scale: _fabScaleAnimation,
-        child: FloatingActionButton.extended(
-          onPressed: _isLoading ? null : _pickFile,
-          backgroundColor: _gradientColors[0],
-          icon: const Icon(Icons.upload_file, color: Colors.white),
-          label: const Text('Upload PDF', style: TextStyle(color: Colors.white)),
-        ),
+      return FloatingActionButton.extended(
+        onPressed: _isLoading ? null : _pickFile,
+        backgroundColor: _gradientColors[0],
+        icon: const Icon(Icons.upload_file, color: Colors.white),
+        label: const Text('Upload PDF', style: TextStyle(color: Colors.white)),
       );
     } else {
       return Column(
@@ -918,16 +877,6 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
             backgroundColor: _gradientColors[1],
             heroTag: 'suggestions',
             child: const Icon(Icons.lightbulb_outline, color: Colors.white),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton.small(
-            onPressed: _toggleAutoListen,
-            backgroundColor: _autoListen ? _gradientColors[0] : Colors.grey.shade600,
-            heroTag: 'auto_listen',
-            child: Icon(
-              _autoListen ? Icons.record_voice_over : Icons.voice_over_off,
-              color: Colors.white,
-            ),
           ),
           const SizedBox(height: 12),
           FloatingActionButton(
@@ -944,38 +893,15 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     }
   }
 
-  Widget _buildAIIndicator() {
-    return SizedBox(
-      width: 24,
-      height: 24,
-      child: CustomPaint(
-        painter: VoiceWavePainter(
-          waveHeights: _waveHeights,
-          color: _gradientColors[0],
-          isActive: _isSpeaking,
-          isLarge: false,
-        ),
-        size: const Size(24, 24),
-      ),
-    );
-  }
-
   Widget _buildEmptyState(bool isDarkMode) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          ShaderMask(
-            shaderCallback: (bounds) => LinearGradient(
-              colors: _gradientColors,
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ).createShader(bounds),
-            child: Icon(
-              Icons.mic,
-              size: 80,
-              color: Colors.white,
-            ),
+          Icon(
+            Icons.mic,
+            size: 80,
+            color: isDarkMode ? Colors.white : Colors.black,
           ),
           const SizedBox(height: 24),
           Text(
@@ -990,7 +916,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
           if (!_isLoading)
             ElevatedButton.icon(
               icon: const Icon(Icons.upload_file),
-              label: const Text('Upload PDF'),
+              label: const Text('Upload'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _gradientColors[0],
                 foregroundColor: Colors.white,
@@ -1007,8 +933,7 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
   }
 
   Widget _buildVoiceInputUI(bool isDarkMode) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: isDarkMode ? Colors.grey[900] : Colors.white,
@@ -1059,22 +984,22 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
                     ),
                     if (_isListening)
                       AnimatedBuilder(
-                        animation: _levelAnimationController,
-                        builder: (context, child) {
-                          return CustomPaint(
-                            painter: VoiceWavePainter(
-                              waveHeights: List.generate(
-                                5,
-                                    (i) => _random.nextDouble() * _soundLevel * 2,
-                              ),
-                              color: _gradientColors[0],
-                              isActive: true,
-                              isLarge: false,
+                      animation: _levelAnimationController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: VoiceWavePainter(
+                            waveHeights: List.generate(
+                              5,
+                                  (i) => _random.nextDouble() * _soundLevel * 2,
                             ),
-                            size: const Size(24, 24),
-                          );
-                        },
-                      ),
+                            color: _gradientColors[0],
+                            isActive: true,
+                            isLarge: false,
+                          ),
+                          size: const Size(24, 24),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -1153,85 +1078,6 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     }
   }
 
-  Future<void> _openChatHistory() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatHistoryScreen(
-          currentSessionId: _currentSessionId,
-        ),
-      ),
-    );
-
-    if (result != null && result is Map<String, dynamic>) {
-      await _restoreSession(result);
-    }
-  }
-
-  Future<void> _restoreSession(Map<String, dynamic> sessionData) async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _statusMessage = 'Restoring session...';
-        _isRestoredSession = true;
-      });
-
-      final int sessionId = sessionData['id'];
-      final String fileName = sessionData['name'];
-      final String filePath = sessionData['file_path'] ?? '';
-
-      setState(() {
-        _messages = [];
-        _fileContext = '';
-        _suggestedQuestions = [];
-      });
-
-      _currentSessionId = sessionId;
-
-      if (filePath.isNotEmpty) {
-        final file = File(filePath);
-        if (await file.exists()) {
-          _selectedFile = file;
-          _fileName = fileName;
-          await _processFile(file);
-        } else {
-          _fileName = fileName;
-          _statusMessage = 'File no longer available. Loading messages only.';
-          setState(() {
-            _messages.add(VoiceChatMessage(
-              text: "📄 History restored for '$fileName'. Note: The original file is no longer available.",
-              isUser: false,
-              timestamp: DateTime.now(),
-              isIntro: false,
-            ));
-          });
-        }
-      }
-
-      final messages = await _historyRepository.getMessagesForSession(sessionId);
-
-      setState(() {
-        _messages.addAll(messages.map((m) => VoiceChatMessage(
-          text: m.text,
-          isUser: m.isUser,
-          timestamp: m.timestamp,
-          isIntro: false,
-        )));
-        _isLoading = false;
-        _statusMessage = 'Session restored';
-      });
-
-      _scrollToBottom();
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _statusMessage = 'Error restoring session';
-        _isRestoredSession = false;
-      });
-      _showErrorSnackBar('Error restoring session: ${e.toString()}');
-    }
-  }
-
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_chatScrollController.hasClients) {
@@ -1244,29 +1090,26 @@ class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     });
   }
 
-  void _showErrorSnackBar(String message) {
+  void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(bottom: 140.0, left: 16.0, right: 16.0),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
-
   @override
   void dispose() {
     _speech.cancel();
     _tts.stop();
     _chatScrollController.dispose();
-    _backgroundAnimationController.dispose();
-    _fabAnimationController.dispose();
     _levelAnimationController.dispose();
     _aiVoiceAnimationController.dispose();
     _overlayAnimationController.dispose();
     _waveUpdateTimer?.cancel();
-    _micRestartTimer?.cancel();
+    _noSoundTimer?.cancel();
+
     super.dispose();
   }
 }
@@ -1342,62 +1185,6 @@ class VoiceWavePainter extends CustomPainter {
     return oldDelegate.isActive != isActive ||
         oldDelegate.color != color ||
         oldDelegate.waveHeights != waveHeights;
-  }
-}
-
-class AnimatedBackgroundPainter extends CustomPainter {
-  final double animation;
-  final bool isDarkMode;
-  final List<Color> gradientColors;
-
-  AnimatedBackgroundPainter({
-    required this.animation,
-    required this.isDarkMode,
-    required this.gradientColors,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint();
-    canvas.drawColor(
-      isDarkMode ? Colors.black : Colors.white,
-      BlendMode.srcOver,
-    );
-
-    final baseColor = gradientColors[0].withOpacity(0.1);
-    final accentColor = gradientColors[1].withOpacity(0.05);
-
-    final center1 = Offset(
-      size.width * (0.2 + 0.1 * math.sin(animation * math.pi * 2)),
-      size.height * (0.3 + 0.1 * math.cos(animation * math.pi * 2)),
-    );
-    final radius1 = size.width * 0.4 * (0.8 + 0.2 * math.sin(animation * math.pi));
-
-    paint.shader = RadialGradient(
-      colors: [baseColor, Colors.transparent],
-      stops: const [0.5, 1.0],
-    ).createShader(Rect.fromCircle(center: center1, radius: radius1));
-
-    canvas.drawCircle(center1, radius1, paint);
-
-    final center2 = Offset(
-      size.width * (0.8 - 0.1 * math.cos(animation * math.pi * 2)),
-      size.height * (0.7 - 0.1 * math.sin(animation * math.pi * 2)),
-    );
-    final radius2 = size.width * 0.3 * (0.8 + 0.2 * math.cos(animation * math.pi));
-
-    paint.shader = RadialGradient(
-      colors: [accentColor, Colors.transparent],
-      stops: const [0.5, 1.0],
-    ).createShader(Rect.fromCircle(center: center2, radius: radius2));
-
-    canvas.drawCircle(center2, radius2, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant AnimatedBackgroundPainter oldDelegate) {
-    return oldDelegate.animation != animation ||
-        oldDelegate.isDarkMode != isDarkMode;
   }
 }
 
@@ -1484,7 +1271,7 @@ class VoiceChatBubble extends StatelessWidget {
                       data: message.text,
                       styleSheet: MarkdownStyleSheet(
                         h1: TextStyle(
-                          color: isUser ? null : Colors.white,
+                          color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -1505,7 +1292,6 @@ class VoiceChatBubble extends StatelessWidget {
                             : Colors.white,
                       ),
                     ),
-                  if (!isUser && !message.isIntro) const SizedBox(height: 8),
                   if (!isUser && !message.isIntro)
                     Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1534,14 +1320,7 @@ class VoiceChatBubble extends StatelessWidget {
                         InkWell(
                           onTap: () {
                             Clipboard.setData(ClipboardData(text: message.text));
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Text('Copied to clipboard'),
-                                duration: const Duration(seconds: 1),
-                                behavior: SnackBarBehavior.floating,
-                                margin: const EdgeInsets.only(bottom: 140.0, left: 16.0, right: 16.0),
-                              ),
-                            );
+                            _showToast(context, 'Copied to clipboard');
                           },
                           child: Icon(
                             Icons.copy,
@@ -1572,196 +1351,14 @@ class VoiceChatBubble extends StatelessWidget {
       ),
     );
   }
-}
 
-class ChatHistoryScreen extends StatefulWidget {
-  final int? currentSessionId;
-
-  const ChatHistoryScreen({
-    Key? key,
-    this.currentSessionId,
-  }) : super(key: key);
-
-  @override
-  State<ChatHistoryScreen> createState() => _ChatHistoryScreenState();
-}
-
-class _ChatHistoryScreenState extends State<ChatHistoryScreen> {
-  final ChatHistoryRepository _repository = ChatHistoryRepository();
-  List<Map<String, dynamic>> _sessions = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSessions();
-  }
-
-  Future<void> _loadSessions() async {
-    try {
-      final sessions = await _repository.getSessions();
-      setState(() {
-        _sessions = sessions.map((session) => {
-          'id': session.id,
-          'name': session.fileName,
-          'file_path': session.filePath,
-          'timestamp': session.createdAt,
-        }).toList();
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      _showErrorSnackBar('Error loading sessions: ${e.toString()}');
-    }
-  }
-
-  Future<void> _deleteSession(int sessionId) async {
-    try {
-      await _repository.deleteSession(sessionId);
-      setState(() {
-        _sessions.removeWhere((s) => s['id'] == sessionId);
-      });
-    } catch (e) {
-      _showErrorSnackBar('Error deleting session: ${e.toString()}');
-    }
-  }
-
-  void _showErrorSnackBar(String message) {
+  void _showToast(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
-        behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.only(bottom: 140.0, left: 16.0, right: 16.0),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 1),
       ),
     );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chat History'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _sessions.isEmpty
-          ? Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.history,
-              size: 64,
-              color: isDarkMode ? Colors.grey : Colors.grey.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No chat history yet',
-              style: TextStyle(
-                fontSize: 18,
-                color: isDarkMode ? Colors.grey : Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      )
-          : ListView.builder(
-        itemCount: _sessions.length,
-        itemBuilder: (context, index) {
-          final session = _sessions[index];
-          final isActive = session['id'] == widget.currentSessionId;
-
-          return Dismissible(
-            key: Key('session_${session['id']}'),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              color: Colors.red,
-              child: const Icon(
-                Icons.delete,
-                color: Colors.white,
-              ),
-            ),
-            confirmDismiss: (direction) async {
-              return await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Delete Session'),
-                  content: const Text('Are you sure you want to delete this chat session?'),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Delete'),
-                    ),
-                  ],
-                ),
-              );
-            },
-            onDismissed: (direction) {
-              _deleteSession(session['id']);
-            },
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: isActive ? Colors.blue : Colors.grey.shade200,
-                child: Icon(
-                  Icons.description,
-                  color: isActive ? Colors.white : Colors.grey.shade600,
-                ),
-              ),
-              title: Text(
-                session['name'] ?? 'Unnamed Document',
-                style: TextStyle(
-                  fontWeight: isActive ? FontWeight.bold : null,
-                ),
-              ),
-              subtitle: Text(
-                _formatDateTime(session['timestamp']),
-              ),
-              trailing: Icon(
-                Icons.chevron_right,
-                color: isActive ? Colors.blue : null,
-              ),
-              onTap: () {
-                Navigator.of(context).pop(session);
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    final now = DateTime.now();
-    final difference = now.difference(dateTime);
-
-    if (difference.inDays == 0) {
-      return 'Today at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } else if (difference.inDays < 7) {
-      final List<String> weekdays = [
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-        'Sunday'
-      ];
-      return '${weekdays[dateTime.weekday - 1]} at ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    } else {
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-    }
   }
 }

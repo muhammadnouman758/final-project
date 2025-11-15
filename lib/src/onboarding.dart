@@ -1,12 +1,8 @@
 import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'dart:ui';
-
-import '../chatbot.dart';
-import '../main.dart';
 import '../onboarding/info.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -29,7 +25,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
 
   final List<OnboardingItem> _onboardingItems = [
     OnboardingItem(
-      title: "Welcome to PDF Chat",
+      title: "Welcome to NexPDFChat",
       description: "Your intelligent assistant for PDF documents, powered by advanced AI technology.",
       icon: Icons.menu_book,
       secondaryIcon: Icons.smart_toy_rounded,
@@ -205,7 +201,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                           ),
                           const SizedBox(width: 8),
                           Text(
-                            "PDF Chat",
+                            "NexPDFChat",
                             style: TextStyle(
                               color: textColor,
                               fontSize: 18,
@@ -342,7 +338,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                           child: TextButton(
                             onPressed: () {
                               Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(builder: (_) => const PdfChatScreen()),
+                                MaterialPageRoute(builder: (_) => const UserInfoScreen()),
                               );
                             },
                             child: Text(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:smart_pdf_chat/home_page.dart';
 import 'package:smart_pdf_chat/src/onboarding.dart';
 import 'dart:async';
 import 'dart:math' as math;
@@ -117,10 +119,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             random.nextDouble() * 1.sh,
           ),
           speed: Offset(
-            (random.nextDouble() - 0.5) * 0.8,  // Slower movement for elegant feel
+            (random.nextDouble() - 0.5) * 0.8,
             (random.nextDouble() - 0.5) * 0.8,
           ),
-          radius: random.nextDouble() * 6 + 2,  // Particle sizes between 2-8
+          radius: random.nextDouble() * 6 + 2,
           opacity: random.nextDouble() * 0.5 + 0.2,
         ),
       );
@@ -129,20 +131,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   Future<void> _initializeApp() async {
     await UserPreferences.init();
-
-    // Simulate app initialization with a minimum delay
     await Future.delayed(const Duration(seconds: 3));
-
-    // Navigate to appropriate screen
     if (mounted) {
       setState(() {
         _isLoading = false;
       });
 
-      // Navigate after a short delay for animations to complete
       Timer(const Duration(milliseconds: 600), () {
         if (mounted) {
           if (UserPreferences.isFirstTimeUser()) {
+            // Set first-time flag to false after showing onboarding
+            UserPreferences.setFirstTimeUser(false);
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
                 pageBuilder: (_, animation, __) => FadeTransition(
@@ -153,11 +152,12 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               ),
             );
           } else {
+            // Navigate to PdfChatScreen for non-first-time users
             Navigator.of(context).pushReplacement(
               PageRouteBuilder(
                 pageBuilder: (_, animation, __) => FadeTransition(
                   opacity: animation,
-                  child: const OnboardingScreen(),
+                  child: const HomePage(),
                 ),
                 transitionDuration: const Duration(milliseconds: 800),
               ),
@@ -274,8 +274,8 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             letterSpacing: 1.5,
-                            shadows: [
-                              const Shadow(
+                            shadows: const [
+                              Shadow(
                                 color: Colors.black26,
                                 blurRadius: 5,
                                 offset: Offset(0, 2),
@@ -434,7 +434,6 @@ class ParticlePainter extends CustomPainter {
   }
 }
 
-// User preferences manager
 class UserPreferences {
   static SharedPreferences? _preferences;
   static const String _firstTimeKey = 'first_time_user';

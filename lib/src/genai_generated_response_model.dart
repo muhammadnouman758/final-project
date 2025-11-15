@@ -1,6 +1,4 @@
-/// Represents the response model for generated content from the Gemini API.
-///
-/// This class contains the generated text and an optional citation URI.
+
 class GenaiGeneratedResponseModel {
   /// The generated text content.
   final String text;

@@ -1,120 +1,240 @@
+# Smart PDF Chat Assistant
 
-# Smart NexPDFChat Assistance 
+<div align="center">
 
+![Flutter](https://img.shields.io/badge/Flutter-3.19+-02569B?style=for-the-badge&logo=flutter)
+![Dart](https://img.shields.io/badge/Dart-3.2-0175C2?style=for-the-badge&logo=dart)
+![AI Powered](https://img.shields.io/badge/AI-Gemini-FF6D00?style=for-the-badge&logo=google)
+![Cross Platform](https://img.shields.io/badge/Cross-Platform-8A2BE2?style=for-the-badge)
 
+**Revolutionize how you interact with documents using AI-powered conversations**
 
-![App Screenshot](https://via.placeholder.com/800x500.png?text=Smart+PDF+Chat+Assistant+Screenshot)
+[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Tech Stack](#-tech-stack) • [Contributing](#-contributing)
 
-A powerful Flutter application that enables both voice and text-based interaction with PDF documents using Google's Gemini AI.
+</div>
 
-## Features ✨
+## 🚀 Features
 
-- **Dual Interface**: Choose between voice or text chat modes
-- **PDF Processing**: Upload and analyze PDF documents
-- **AI-powered Insights**: Get summaries and answers about your documents
-- **Conversation History**: Save and restore previous chat sessions
-- **Rich Formatting**: Markdown support for beautifully formatted responses
-- **Voice Interaction**: Speak naturally and receive spoken responses
-- **Suggested Questions**: Get AI-generated questions to explore your documents
-- **Cross-platform**: Works on iOS, Android, and web
+### 🤖 AI-Powered Document Intelligence
+- **Smart Q&A**: Ask complex questions about your PDF content
+- **Document Summarization**: Get concise overviews of lengthy documents
+- **Contextual Understanding**: AI maintains conversation context throughout sessions
 
-## Installation 🛠️
+### 🎙️ Multi-Modal Interaction
+- **Voice Commands**: Speak naturally to ask questions
+- **Text Chat**: Traditional typing interface
+- **Real-time Responses**: Instant AI-powered answers
+
+### 📱 Modern UX
+- **Seamless Uploads**: Drag & drop PDF support
+- **Conversation History**: Persistent chat sessions
+- **Markdown Rendering**: Beautifully formatted responses
+- **Dark/Light Theme**: Adaptive UI based on system preferences
+
+## ⚡ Quick Start
 
 ### Prerequisites
-- Flutter SDK (latest stable version)
-- Dart SDK
-- Google Gemini API key
+- Flutter SDK 3.19+
+- Dart 3.2+
+- Gemini API Key ([Get one here](https://aistudio.google.com/app/apikey))
 
-### Steps
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/smart-pdf-chat.git
-   cd smart-pdf-chat
-   ```
+### Installation
 
-2. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/smart-pdf-chat.git
+cd smart-pdf-chat
 
-3. Add your Gemini API key:
-   - Create a `.env` file in the root directory
-   - Add: `GEMINI_API_KEY=your_api_key_here`
+# Install dependencies
+flutter pub get
 
-4. Run the app:
-   ```bash
-   flutter run
-   ```
+# Set up environment variables
+cp .env.example .env
+```
 
-## Usage Guide 📖
+Configure your environment:
 
-### Voice Chat Mode
-1. Tap the microphone icon to start speaking
-2. Ask questions about your uploaded PDF
-3. Receive spoken answers with visual feedback
-4. Use suggested questions to explore the document
+```env
+GEMINI_API_KEY=your_actual_gemini_api_key_here
+GEMINI_MODEL=gemini-1.5-flash
+```
 
-### Text Chat Mode
-1. Type your question in the input field
-2. Press send or hit enter
-3. View formatted responses with Markdown support
-4. Copy messages or explore conversation history
+### Running the App
 
-### Document Upload
-1. Tap the upload button
-2. Select a PDF file from your device
-3. Wait for processing to complete
-4. Start asking questions
+```bash
+# Development mode
+flutter run
 
-## Technical Architecture 🏗️
+# Build for production
+flutter build apk --release
+```
 
-### Core Components
-- **Gemini API Integration**: For document processing and question answering
-- **Speech Recognition**: Powered by `speech_to_text` package
-- **Text-to-Speech**: Using `flutter_tts`
-- **Local Database**: SQLite for conversation history
-- **State Management**: Built-in Flutter state management
+## 🎯 Usage Examples
 
-### Packages Used
-- `file_picker`: For PDF selection
-- `speech_to_text`: Voice input
-- `flutter_tts`: Voice output
-- `sqflite`: Local storage
-- `flutter_markdown`: Rich text rendering
-- `animated_text_kit`: Typing animations
+### Document Analysis
+```
+👤 "Summarize the key points from this research paper"
+🤖 Provides concise summary with main findings
 
-## Screenshots 📸
+👤 "What are the main methodologies discussed?"
+🤖 Lists and explains research methods
 
-| Voice Chat Mode | Text Chat Mode | Document Upload |
-|-----------------|----------------|-----------------|
-| ![Voice](https://via.placeholder.com/300x500.png?text=Voice+Mode) | ![Text](https://via.placeholder.com/300x500.png?text=Text+Mode) | ![Upload](https://via.placeholder.com/300x500.png?text=Document+Upload) |
+👤 "Extract all references mentioned"
+🤖 Compiles bibliography from document
+```
 
-## Contributing 🤝
+### Voice Interaction
+```dart
+// Tap mic icon and speak naturally
+"Find the project timeline in this document"
+// AI responds with relevant timeline information
+```
 
-We welcome contributions! Please follow these steps:
+## 🏗️ Tech Stack
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### Core Framework
+- **Flutter 3.19+** - Cross-platform UI toolkit
+- **Dart 3.2** - Null-safe, modern language features
 
+### AI & ML
+- **Google Gemini AI** - Advanced document understanding
+- **Custom Prompts** - Optimized for PDF content analysis
 
-## License 📜
+### Voice Processing
+- `speech_to_text` - Accurate speech recognition
+- `flutter_tts` - Natural voice responses
+
+### Data & Storage
+- `sqflite` - Local conversation database
+- `file_picker` - Secure document selection
+- `path_provider` - Cross-platform file handling
+
+### UI & UX
+- `flutter_markdown` - Rich text rendering
+- `lottie` - Smooth animations
+- Adaptive design - Responsive across all platforms
+
+## 📁 Project Structure
+
+```
+lib/
+├── core/                           # Core functionality & infrastructure
+│   ├── services/                   # Business logic & API clients
+│   │   ├── genai_client.dart              # Gemini API client for document processing
+│   │   └── genai_file_manager.dart        # File upload & retrieval management
+│   ├── models/                     # Data models (entities, API responses)
+│   │   ├── chat_message.dart              # Chat message model
+│   │   ├── genai_file_model.dart          # File metadata model for Gemini API
+│   │   └── genai_generated_response_model.dart  # API response model
+│   └── constants/                  # App-wide constants (API keys, config)
+│
+├── features/                       # Feature-specific modules
+│   ├── chat/                       # Chat management feature
+│   │   ├── chat_his_db.dart              # SQLite database operations
+│   │   ├── chat_his_repo.dart            # Repository pattern for chat history
+│   │   ├── chat_his_screen.dart          # Chat history UI screen
+│   │   └── pdf_chat_screen.dart          # Main PDF chat interface
+│   │
+│   ├── documents/                  # Document handling (future expansion)
+│   │   └── (reserved for PDF upload, processing, storage)
+│   │
+│   ├── voice/                      # Voice interaction feature
+│   │   ├── voice_chat.dart               # Voice input/TTS chat screen
+│   │   └── voice_models.dart             # Voice-specific data models (VoiceChatMessage, etc)
+│   │
+│   └── onboarding/                 # User onboarding flow
+│       ├── splash.dart                   # Splash screen
+│       └── (onboarding screens & info)
+│
+├── shared/                         # Shared across features
+│   ├── widgets/                    # Reusable UI components
+│   │   ├── chat_bubble.dart              # Chat message bubble widget
+│   │   ├── typing_indicator.dart         # Animated typing indicator
+│   │   ├── animated_background.dart      # Animated background component
+│   │   └── (other reusable widgets)
+│   │
+│   └── utils/                      # Helper functions & utilities
+│       ├── validators.dart               # Input validation helpers
+│       ├── formatters.dart               # Date/time formatting
+│       └── (other utilities)
+│
+├── main.dart                       # App entry point & MaterialApp setup
+├── pdf_gemini.dart                 # (Legacy - can be moved to core/constants)
+├── chatbot.dart                    # (Legacy - can be refactored)
+└── home_page.dart                  # (Legacy - can be integrated into features)
+```
+
+## 🛠️ Development
+
+### Running Tests
+```bash
+# Unit tests
+flutter test
+
+# Integration tests
+flutter test integration_test/
+
+# Test coverage
+flutter test --coverage
+```
+
+### Code Quality
+```bash
+# Analyze code
+flutter analyze
+
+# Format code
+dart format .
+
+# Fix dependencies
+flutter pub outdated
+flutter pub upgrade
+```
+
+## 🤝 Contributing
+
+We love contributions! Here's how to help:
+
+1. **Fork** the repository
+2. **Create** a feature branch: `git checkout -b feature/amazing-feature`
+3. **Commit** your changes: `git commit -m 'Add amazing feature'`
+4. **Push** to the branch: `git push origin feature/amazing-feature`
+5. **Open** a Pull Request
+
+### Development Setup
+```bash
+# Enable Flutter desktop support (if needed)
+flutter config --enable-<platform>-desktop
+
+# Get all dependencies
+flutter pub get
+
+# Generate localization files (if applicable)
+flutter gen-l10n
+```
+
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support 💬
+## 🆘 Support
 
-For support or feature requests, please open an issue on GitHub or contact us at support@smartpdfchat.com
+- 📧 **Email**: m.nouman5710@gmail.com
+- 🐛 **Issues**: [GitHub Issues](https://github.com/yourusername/smart-pdf-chat/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/yourusername/smart-pdf-chat/discussions)
+
+## 🙏 Acknowledgments
+
+- Google Gemini AI for powerful document understanding
+- Flutter community for excellent packages
+- Contributors who help improve this project
 
 ---
 
-**Happy Document Exploring!** 📄💬
+<div align="center">
 
+**Ready to transform your document workflow?** Give us a ⭐ on GitHub!
 
+*"Making document interaction smarter, one chat at a time"*
 
-
-## Support 💬
-
-For support or feature requests, please open an issue on GitHub or contact us at m.nouman5710@gmail.
+</div>

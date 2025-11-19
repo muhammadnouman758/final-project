@@ -21,11 +21,8 @@ class VoiceChatBotPdf extends StatefulWidget {
 
 class _VoiceChatBotPdfState extends State<VoiceChatBotPdf>
     with TickerProviderStateMixin {
-<<<<<<< HEAD
-  final String _geminiApiKey = '';
-=======
   final String _geminiApiKey = 'A';
->>>>>>> ef61391823bb2e13be3f90f42114a62d3041b6ea
+>>>>>>> modify-mvvm
   final ScrollController _chatScrollController = ScrollController();
   final stt.SpeechToText _speech = stt.SpeechToText();
   final FlutterTts _tts = FlutterTts();
@@ -1365,10 +1362,6 @@ class VoiceChatBubble extends StatelessWidget {
       ),
     );
   }
-<<<<<<< HEAD
-}
-=======
-
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
@@ -1495,4 +1488,4 @@ class VoiceChatBubble extends StatelessWidget {
     }
   }
 }
->>>>>>> ef61391823bb2e13be3f90f42114a62d3041b6ea
+>>>>>>> modify-mvvm
